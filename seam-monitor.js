@@ -439,24 +439,25 @@ async function pollTable(tableNum) {
     valueMap[sn][st][mt] = [row.Value1, row.Value2, row.Value3];
   }
 
-  const records = [];
+  const PUSHOVER_RECENT_MS = parseInt(process.env.PUSHOVER_RECENT_HOURS || '24', 10) * 3600_000;
+  const BATCH_SIZE = parseInt(process.env.INGEST_BATCH_SIZE || '20', 10);
+  let batch = [];
 
   for (const sample of samples) {
-    const sn       = sample.SampleNumber;
-    const scanDate = parseDate(sample.SampleDate);
-    const pullTime = parseTime(sample.PullTime);
-    const product  = (sample.Info1 || '').trim() || null;
+    const sn        = sample.SampleNumber;
+    const scanDate  = parseDate(sample.SampleDate);
+    const pullTime  = parseTime(sample.PullTime);
+    const product   = (sample.Info1 || '').trim() || null;
     const canFormat = getCanFormat(product);
 
     const stationNums = Object.keys(valueMap[sn] || {}).map(Number).sort();
-    if (stationNums.length === 0) {
-      // No measurements found for this sample — still record it
-      stationNums.push(1);
-    }
+    if (stationNums.length === 0) stationNums.push(1);
+
+    const sampleRecords = [];
 
     for (const station of stationNums) {
-      const vals      = (valueMap[sn] || {})[station] || {};
-      const headData  = {
+      const vals     = (valueMap[sn] || {})[station] || {};
+      const headData = {
         countersink: vals[3]  || [null, null, null],
         thickness:   vals[4]  || [null, null, null],
         bodyHook:    vals[8]  || [null, null, null],
@@ -464,15 +465,10 @@ async function pollTable(tableNum) {
         overlap:     vals[13] || [null, null, null],
         seamHeight:  vals[15] || [null, null, null],
       };
-
       const analysis = analyzeHead(headData, canFormat);
+      const images   = await convertAndUploadImages(sample.SampleDate, sample.PullTime, station, sn);
 
-      // Fetch images for this head
-      const images = await convertAndUploadImages(
-        sample.SampleDate, sample.PullTime, station, sn
-      );
-
-      records.push({
+      sampleRecords.push({
         sourceTable:   sampleTable,
         sampleNumber:  sn,
         stationNumber: station,
@@ -496,35 +492,42 @@ async function pollTable(tableNum) {
       });
     }
 
-    // Only send Pushover for recent scans (skip historical imports)
-    const PUSHOVER_RECENT_MS = parseInt(process.env.PUSHOVER_RECENT_HOURS || '24', 10) * 3600_000;
-    const scanTs = new Date(parseDate(sample.SampleDate)).getTime();
-    const isRecent = (Date.now() - scanTs) < PUSHOVER_RECENT_MS;
+    batch.push(...sampleRecords);
 
+    // Pushover for recent scans only
+    const scanTs   = new Date(scanDate).getTime();
+    const isRecent = (Date.now() - scanTs) < PUSHOVER_RECENT_MS;
     if (isRecent) {
-      const stationsForPush = records.filter(r =>
-        r.sourceTable === sampleTable && r.sampleNumber === sn
-      );
-      for (const r of stationsForPush) {
+      for (const r of sampleRecords) {
         if (r.overallStatus !== 'Pass') {
-          const title    = `Seam ${r.overallStatus} — ${r.product || 'Unknown'} Head ${r.stationNumber}`;
-          const body     = buildPushoverBody(r);
-          const priority = r.overallStatus === 'Fail' ? 1 : 0;
-          await sendPushover(title, body, priority);
+          await sendPushover(
+            `Seam ${r.overallStatus} — ${r.product || 'Unknown'} Head ${r.stationNumber}`,
+            buildPushoverBody(r),
+            r.overallStatus === 'Fail' ? 1 : 0
+          );
         }
       }
     }
+
+    // POST every BATCH_SIZE samples so data appears in the app immediately
+    if (batch.length >= BATCH_SIZE) {
+      const posted = await postToRailway(batch);
+      if (posted) {
+        watermark[sampleTable] = sn;
+        log('OK', `${sampleTable}: batch posted, watermark → ${sn}`);
+      }
+      batch = [];
+    }
   }
 
-  if (records.length === 0) return;
-
-  // POST to Railway
-  const posted = await postToRailway(records);
-  if (posted) {
-    // Advance watermark
-    const maxId = Math.max(...samples.map(s => s.SampleNumber));
-    watermark[sampleTable] = maxId;
-    log('OK', `${sampleTable}: watermark advanced to ${maxId}`);
+  // Flush remaining
+  if (batch.length > 0) {
+    const posted = await postToRailway(batch);
+    if (posted) {
+      const maxId = Math.max(...samples.map(s => s.SampleNumber));
+      watermark[sampleTable] = maxId;
+      log('OK', `${sampleTable}: watermark advanced to ${maxId}`);
+    }
   }
 }
 
