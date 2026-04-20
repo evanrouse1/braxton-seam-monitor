@@ -456,14 +456,16 @@ async function pollTable(tableNum) {
     const sampleRecords = [];
 
     for (const station of stationNums) {
-      const vals     = (valueMap[sn] || {})[station] || {};
+      const vals = (valueMap[sn] || {})[station] || {};
+      const r3 = v => v == null ? null : Math.round(v * 1000) / 1000;
+      const r1 = v => v == null ? null : Math.round(v * 10)   / 10;
       const headData = {
-        countersink: vals[3]  || [null, null, null],
-        thickness:   vals[4]  || [null, null, null],
-        bodyHook:    vals[8]  || [null, null, null],
-        coverHook:   vals[10] || [null, null, null],
-        overlap:     vals[13] || [null, null, null],
-        seamHeight:  vals[15] || [null, null, null],
+        countersink: (vals[3]  || [null, null, null]).map(r3),
+        thickness:   (vals[4]  || [null, null, null]).map(r3),
+        bodyHook:    (vals[8]  || [null, null, null]).map(r3),
+        coverHook:   (vals[10] || [null, null, null]).map(r3),
+        overlap:     (vals[13] || [null, null, null]).map(r1),
+        seamHeight:  (vals[15] || [null, null, null]).map(r3),
       };
       const analysis = analyzeHead(headData, canFormat);
       const images   = await convertAndUploadImages(sample.SampleDate, sample.PullTime, station, sn);
