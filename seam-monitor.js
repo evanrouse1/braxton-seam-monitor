@@ -496,16 +496,22 @@ async function pollTable(tableNum) {
       });
     }
 
-    // Send Pushover if not Pass
-    const stationsForPush = records.filter(r =>
-      r.sourceTable === sampleTable && r.sampleNumber === sn
-    );
-    for (const r of stationsForPush) {
-      if (r.overallStatus !== 'Pass') {
-        const title    = `Seam ${r.overallStatus} — ${r.product || 'Unknown'} Head ${r.stationNumber}`;
-        const body     = buildPushoverBody(r);
-        const priority = r.overallStatus === 'Fail' ? 1 : 0;
-        await sendPushover(title, body, priority);
+    // Only send Pushover for recent scans (skip historical imports)
+    const PUSHOVER_RECENT_MS = parseInt(process.env.PUSHOVER_RECENT_HOURS || '24', 10) * 3600_000;
+    const scanTs = new Date(parseDate(sample.SampleDate)).getTime();
+    const isRecent = (Date.now() - scanTs) < PUSHOVER_RECENT_MS;
+
+    if (isRecent) {
+      const stationsForPush = records.filter(r =>
+        r.sourceTable === sampleTable && r.sampleNumber === sn
+      );
+      for (const r of stationsForPush) {
+        if (r.overallStatus !== 'Pass') {
+          const title    = `Seam ${r.overallStatus} — ${r.product || 'Unknown'} Head ${r.stationNumber}`;
+          const body     = buildPushoverBody(r);
+          const priority = r.overallStatus === 'Fail' ? 1 : 0;
+          await sendPushover(title, body, priority);
+        }
       }
     }
   }
