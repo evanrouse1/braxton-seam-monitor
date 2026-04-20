@@ -1,0 +1,18 @@
+{
+  "name": "braxton-seam-monitor",
+  "version": "2.0.0",
+  "description": "Braxton Brewing can seam monitor — SQL Server polling → Railway PostgreSQL",
+  "main": "seam-monitor.js",
+  "scripts": {
+    "start": "node seam-monitor.js",
+    "dev": "node --watch seam-monitor.js"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "googleapis": "^144.0.0",
+    "jimp": "^0.22.12",
+    "mssql": "^11.0.1"
+  }
+}
