@@ -45,9 +45,10 @@ const MSSQL_CONFIG = {
   server:   process.env.MSSQL_SERVER   || 'SEAMSCAN\\ONEVISIONSQL',
   database: process.env.MSSQL_DATABASE || 'Braxton_Brewing',
   options: {
-    trustedConnection:     true,  // Windows Authentication
-    enableArithAbort:      true,
+    trustedConnection:      true,  // Windows Authentication
+    enableArithAbort:       true,
     trustServerCertificate: true,
+    encrypt:                false, // SQL Server 2008 R2 uses old SSL — disable encryption
   },
   pool: { max: 5, min: 0, idleTimeoutMillis: 30_000 },
   connectionTimeout: 15_000,
