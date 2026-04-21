@@ -21,9 +21,10 @@ const IMAGES_BASE_PATH      = process.env.IMAGES_BASE_PATH      || 'C:\\SeamMate
 const POLL_INTERVAL_MS      = parseInt(process.env.POLL_INTERVAL_MS || '30000', 10);
 const INCLUDE_IMAGES        = (process.env.INCLUDE_IMAGES || 'true') !== 'false';
 
-// Product → can format map. Keep as JSON in .env:
+// Default can format applied to every product (SeamMate SQL does not store can format).
 // 202x413 = Standard 12oz  202x602 = Sleek 12oz  202x603 = Standard 16oz  202x707 = Standard 19.2oz
-// PRODUCT_FORMAT_MAP={"Ballpark Beer":"202x603","Scenic Route IPA":"202x602"}
+// Override specific products via PRODUCT_FORMAT_MAP (optional, only needed for exceptions).
+const DEFAULT_CAN_FORMAT = process.env.DEFAULT_CAN_FORMAT || '202x603';
 let PRODUCT_FORMAT_MAP = {};
 try {
   PRODUCT_FORMAT_MAP = JSON.parse(process.env.PRODUCT_FORMAT_MAP || '{}');
@@ -366,7 +367,7 @@ async function convertAndUploadImages(sampleDate, pullTime, headNumber, sampleNu
 // ─── Can Format Lookup ────────────────────────────────────────────────────────
 
 function getCanFormat(product) {
-  return PRODUCT_FORMAT_MAP[product] || null;
+  return PRODUCT_FORMAT_MAP[product] || DEFAULT_CAN_FORMAT;
 }
 
 // ─── SQL Polling ──────────────────────────────────────────────────────────────
