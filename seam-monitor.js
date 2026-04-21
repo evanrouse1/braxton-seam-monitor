@@ -21,15 +21,16 @@ const IMAGES_BASE_PATH      = process.env.IMAGES_BASE_PATH      || 'C:\\SeamMate
 const POLL_INTERVAL_MS      = parseInt(process.env.POLL_INTERVAL_MS || '30000', 10);
 const INCLUDE_IMAGES        = (process.env.INCLUDE_IMAGES || 'true') !== 'false';
 
-// Default can format applied to every product (SeamMate SQL does not store can format).
+// Line setup → can format map.  Key = LineSetupNumber from SeamMate SQL.
 // 202x413 = Standard 12oz  202x602 = Sleek 12oz  202x603 = Standard 16oz  202x707 = Standard 19.2oz
-// Override specific products via PRODUCT_FORMAT_MAP (optional, only needed for exceptions).
+// Example: LINE_SETUP_FORMAT_MAP={"12316":"202x603","12315":"202x602","12314":"202x413","12313":"202x707"}
+// Fallback if a setup number is not in the map:
 const DEFAULT_CAN_FORMAT = process.env.DEFAULT_CAN_FORMAT || '202x603';
-let PRODUCT_FORMAT_MAP = {};
+let LINE_SETUP_FORMAT_MAP = {};
 try {
-  PRODUCT_FORMAT_MAP = JSON.parse(process.env.PRODUCT_FORMAT_MAP || '{}');
+  LINE_SETUP_FORMAT_MAP = JSON.parse(process.env.LINE_SETUP_FORMAT_MAP || '{}');
 } catch {
-  log('WARN', 'Could not parse PRODUCT_FORMAT_MAP — using empty map');
+  log('WARN', 'Could not parse LINE_SETUP_FORMAT_MAP — using default');
 }
 
 // ─── Logging ──────────────────────────────────────────────────────────────────
@@ -366,8 +367,9 @@ async function convertAndUploadImages(sampleDate, pullTime, headNumber, sampleNu
 
 // ─── Can Format Lookup ────────────────────────────────────────────────────────
 
-function getCanFormat(product) {
-  return PRODUCT_FORMAT_MAP[product] || DEFAULT_CAN_FORMAT;
+function getCanFormat(lineSetupNumber) {
+  const key = String(lineSetupNumber);
+  return LINE_SETUP_FORMAT_MAP[key] || DEFAULT_CAN_FORMAT;
 }
 
 // ─── SQL Polling ──────────────────────────────────────────────────────────────
@@ -446,11 +448,12 @@ async function pollTable(tableNum) {
   let batch = [];
 
   for (const sample of samples) {
-    const sn        = sample.SampleNumber;
-    const scanDate  = parseDate(sample.SampleDate);
-    const pullTime  = parseTime(sample.PullTime);
-    const product   = (sample.Info1 || '').trim() || null;
-    const canFormat = getCanFormat(product);
+    const sn             = sample.SampleNumber;
+    const scanDate       = parseDate(sample.SampleDate);
+    const pullTime       = parseTime(sample.PullTime);
+    const product        = (sample.Info1 || '').trim() || null;
+    const lineSetupNumber = sample.LineSetupNumber;
+    const canFormat      = getCanFormat(lineSetupNumber);
 
     const stationNums = Object.keys(valueMap[sn] || {}).map(Number).sort();
     if (stationNums.length === 0) stationNums.push(1);
