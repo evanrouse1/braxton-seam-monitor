@@ -115,6 +115,16 @@ const SPECS = {
     coverHook:   { min: 0.053, max: 0.080 },
     overlap:     { min: 50, practicalMin: 55, max: 90 },
   },
+  'Crowler 32oz': {
+    // 300-end can — specs derived from actual Ye Olde Regulator measurements.
+    // VERIFY these against your official crowler spec sheet.
+    countersink: { min: 0.255, max: 0.272 },
+    thickness:   { min: 0.044, max: 0.050 },
+    seamHeight:  { min: 0.097, max: 0.110 },
+    bodyHook:    { min: 0.055, max: 0.085 },
+    coverHook:   { min: 0.050, max: 0.080 },
+    overlap:     { min: 50, practicalMin: 55, max: 90 },
+  },
 };
 
 const CAN_FORMAT_MAP = {
@@ -122,6 +132,7 @@ const CAN_FORMAT_MAP = {
   '202x602': 'Sleek 12oz',
   '202x603': 'Standard 16oz',
   '202x707': 'Standard 19.2oz',
+  '300x407': 'Crowler 32oz',
 };
 
 function getSpecsForFormat(canFormat) {
@@ -411,7 +422,7 @@ async function pollTable(tableNum) {
   const sampleResult = await pool.request()
     .input('lastId', sql.Int, lastId)
     .query(`
-      SELECT SampleNumber, SampleDate, PullTime, PlatformID, Info1, Info2, AlertStatus
+      SELECT SampleNumber, SampleDate, PullTime, PlatformID, Info1, Info2, AlertStatus, LineSetupNumber
       FROM ${sampleTable}
       WHERE SampleNumber > @lastId
       ORDER BY SampleNumber ASC
