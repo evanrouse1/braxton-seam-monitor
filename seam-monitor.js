@@ -22,7 +22,8 @@ const POLL_INTERVAL_MS      = parseInt(process.env.POLL_INTERVAL_MS || '30000', 
 const INCLUDE_IMAGES        = (process.env.INCLUDE_IMAGES || 'true') !== 'false';
 
 // Product → can format map. Keep as JSON in .env:
-// PRODUCT_FORMAT_MAP={"Ballpark Beer":"202x413","Scenic Route IPA":"202x602"}
+// 202x413 = Standard 12oz  202x602 = Sleek 12oz  202x603 = Standard 16oz  202x707 = Standard 19.2oz
+// PRODUCT_FORMAT_MAP={"Ballpark Beer":"202x603","Scenic Route IPA":"202x602"}
 let PRODUCT_FORMAT_MAP = {};
 try {
   PRODUCT_FORMAT_MAP = JSON.parse(process.env.PRODUCT_FORMAT_MAP || '{}');
